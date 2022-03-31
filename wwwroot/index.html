@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Shoping list</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" type="text/css">
+</head>
+<body>
+    <h2>Shoping list</h2>
+    <form name="productForm">
+        <input type="hidden" name="id" value="0" />
+        <div class="mb-3">
+            <label class="form-label" for="name">Name:</label>
+            <input class="form-control" name="name" />
+        </div>
+        <div class="mb-3">
+            <label for="age" class="form-label">Quantity:</label>
+            <input class="form-control" name="quantity" />
+        </div>
+        <div class="mb-3">
+            <label for="age" class="form-label">Comment:</label>
+            <input class="form-control" name="comment" />
+        </div>
+        <div class="mb-3">
+            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+            <a id="reset" class="btn btn-sm btn-primary">Reset</a>
+        </div>
+    </form>
+    <table class="table table-condensed table-striped table-bordered">
+        <thead><tr><th>Name</th><th>Quantity</th><th>Comment</th><th>Actions</th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        // получить все продукты
+        async function getProducts() {
+            // отправляет запрос и получаем ответ
+            const response = await fetch("/api/products", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            // если запрос прошел нормально
+            if (response.ok === true) {
+                // получаем данные
+                const products = await response.json();
+                const rows = document.querySelector("tbody");
+                // добавляем полученные элементы в таблицу
+                products.forEach(product => rows.append(row(product)));
+            }
+        }
+
+        // получение одного продукта
+        async function getProduct(id) {
+            const response = await fetch("/api/products/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const product = await response.json();
+                const form = document.forms["productForm"];
+                form.elements["id"].value = product.id;
+                form.elements["name"].value = product.name;
+                form.elements["quantity"].value = product.quantity;
+                form.elements["comment"].value = product.comment;
+            }
+            else {
+                // если произошла ошибка, получаем сообщение об ошибке
+                const error = await response.json();
+                console.log(error.message); // и выводим его на консоль
+            }
+        }
+
+        // добавление продукта
+        async function createProduct(productName, productQuantity, productComment) {
+
+            const response = await fetch("api/products", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: productName,
+                    quantity: parseInt(productQuantity, 10),
+                    comment: productComment
+                })
+            });
+            if (response.ok === true) {
+                const product = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(product));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        // изменение записи
+        async function editProduct(productId, productName, productQuantity, productComment) {
+            const response = await fetch("api/products", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: productId,
+                    name: productName,
+                    quantity: parseInt(productQuantity, 10),
+                    comment: productComment
+                })
+            });
+            if (response.ok === true) {
+                const product = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + product.id + "']").replaceWith(row(product));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        // удаление записи
+        async function deleteProduct(id) {
+            const response = await fetch("/api/products/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const product = await response.json();
+                document.querySelector("tr[data-rowid='" + product.id + "']").remove();
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+
+        // сброс данных формы после отправки
+        function reset() {
+            const form = document.forms["productForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+        }
+
+        // создание строки для таблицы
+        function row(product) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", product.id);
+
+            const nameTd = document.createElement("td");
+            nameTd.append(product.name);
+            tr.append(nameTd);
+
+            const quantityTd = document.createElement("td");
+            quantityTd.append(product.quantity);
+            tr.append(quantityTd);
+
+            const commentTd = document.createElement("td");
+            commentTd.append(product.comment);
+            tr.append(commentTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.append("🖊 Edite");
+            editLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                getProduct(product.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.append("🗑 Delete");
+            removeLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                deleteProduct(product.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        // сброс значений формы
+        document.getElementById("reset").addEventListener("click", e => {
+
+            e.preventDefault();
+            reset();
+        })
+
+        // отправка формы
+        document.forms["productForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            const form = document.forms["productForm"];
+            const id = form.elements["id"].value;
+            const name = form.elements["name"].value;
+            const quantity = form.elements["quantity"].value;
+            const comment = form.elements["comment"].value;
+            if (id == 0)
+                createProduct(name, quantity, comment);
+            else
+                editProduct(id, name, quantity, comment);
+        });
+
+        // загрузка списка
+        getProducts();
+    </script>
+</body>
+</html>
